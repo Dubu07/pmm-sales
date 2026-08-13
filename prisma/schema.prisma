@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model InvoiceType {
+  id            Int       @id @default(autoincrement())
+  name          String
+  prefix        String    @unique
+  nextNumber    Int       @default(1)
+  padding       Int       @default(4)
+  documentTitle String
+  isActive      Boolean   @default(true)
+  invoices      Invoice[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Customer {
+  id            Int       @id @default(autoincrement())
+  name          String
+  address       String
+  contactPerson String?
+  phone         String?
+  isActive      Boolean   @default(true)
+  invoices      Invoice[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([name])
+}
+
+model Invoice {
+  id                      Int           @id @default(autoincrement())
+  invoiceNumber           String        @unique
+  invoiceDate             String
+  invoiceTypeId           Int
+  invoiceType             InvoiceType   @relation(fields: [invoiceTypeId], references: [id])
+  customerId              Int
+  customer                Customer      @relation(fields: [customerId], references: [id])
+  customerNameSnapshot    String
+  customerAddressSnapshot String
+  contactPersonSnapshot   String?
+  phoneSnapshot           String?
+  subtotalCents           Int
+  discountCents           Int           @default(0)
+  totalCents              Int
+  profitCents             Int
+  paymentStatus           String
+  terms                   String
+  note                    String?
+  items                   InvoiceItem[]
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([invoiceDate])
+  @@index([customerId])
+  @@index([paymentStatus])
+}
+
+model InvoiceItem {
+  id             Int      @id @default(autoincrement())
+  invoiceId      Int
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description    String
+  quantity       Int
+  unitPriceCents Int
+  lineTotalCents Int
+  sortOrder      Int      @default(0)
+}
+
+model CompanySettings {
+  id                  Int      @id @default(1)
+  companyName         String   @default("Premium 88 Machine Enterprise")
+  tin                 String   @default("D 60658890060")
+  bankName            String   @default("Alliance Bank")
+  bankAccount         String   @default("070390013037129")
+  defaultTerms        String   @default("Payment received")
+  defaultInvoiceTitle String   @default("Sales Invoice")
+  logoPath            String   @default("/company-logo.png")
+  updatedAt           DateTime @updatedAt
+}
