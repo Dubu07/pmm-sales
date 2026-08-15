@@ -1,118 +1,183 @@
-# PMM Sales & Invoice System - Local Invoice Upgrade
+# PMM Sales & Invoice System — Cloudflare Edition
 
-A local-first sales, customer and invoice system for Premium 88 Machine Enterprise.
+This version keeps the existing Next.js sales/invoice application but moves production hosting to **Cloudflare Workers** and production data to **Cloudflare D1**.
 
-## What this version includes
+## Architecture
 
-- Local Next.js web application
-- SQLite database through Prisma ORM
-- Independent invoice sequences (default `INV0001`, `CS0001`, `RP0001`)
-- Existing customer selection with saved name, address, contact person and phone
-- New-customer entry that automatically saves the customer for future invoices
-- Customer master screen with editing
-- Customer-detail snapshots on invoices so historical invoices do not change when a customer master record changes
-- Multiple line items per sale
-- Whole-number quantities
-- Automatic line totals and subtotal
-- Invoice-level discount; enter `0` / `0.00` when there is no discount
-- Automatic invoice total = subtotal - discount
-- One manually entered Profit value for the complete invoice; profit is internal and never printed on the customer invoice
-- Payment statuses: Paid, Pending, Partial, Consignment, Replacement, Cancelled
-- Terms default to `Payment received` and can be edited per invoice
-- Notes (for example `FOC 1 unit`)
-- Professional customer invoice preview
-- Direct PDF invoice download using the supplied Premium Machine Enterprise logo
-- Browser print / Save as PDF view
-- Dashboard, Sales Records, edit sale, date-range reporting and Excel export
-- Cancelled invoices remain visible but are excluded from dashboard/report totals
-- Company details, bank details, invoice titles and invoice sequences are editable in Settings
-- Timestamped SQLite backup from Settings
+```text
+Phone / Tablet / PC
+        ↓ HTTPS
+Cloudflare Workers
+        ↓
+Next.js via OpenNext
+        ↓
+Cloudflare D1
+```
 
-## First setup on Windows
+The host PC no longer needs to remain on after deployment.
 
-1. Install **Node.js 22 LTS or newer**.
-2. Extract this project folder.
-3. Double-click `setup.bat`.
-4. When setup finishes, double-click `start.bat`.
-5. Open `http://localhost:3000` if it does not open automatically.
+## What changed
 
-The database is stored at:
+- Added `@opennextjs/cloudflare` deployment support.
+- Added `wrangler.jsonc` with Worker name `pmm-sales`.
+- `WORKER_SELF_REFERENCE` now correctly points to `pmm-sales`.
+- Replaced the production local SQLite file with a Cloudflare D1 binding named `DB`.
+- Kept the Prisma schema and Prisma ORM for normal database operations.
+- Invoice create/edit operations use D1 `batch()` so their multi-step writes remain atomic.
+- Added a D1 migration in `migrations/0001_initial.sql` with the default invoice types and company settings.
+- Removed the local `.db` backup workflow from the UI.
+- PDF logo loading now uses the Cloudflare static-assets binding instead of Node filesystem access.
+- Removed Node-only route runtime declarations that are not supported by OpenNext Workers.
 
-`data/pmm-sales.db`
+## Important before first deployment
 
-Backups created from Settings are stored at:
+`wrangler.jsonc` currently contains this placeholder D1 database ID:
 
-`data/backups/`
+```text
+00000000-0000-0000-0000-000000000000
+```
 
-## Default company details
+You must create the real D1 database and replace that value before deploying.
 
-- Company: Premium 88 Machine Enterprise
-- TIN: D 60658890060
-- Bank: Alliance Bank
-- Account: 070390013037129
-- Default terms: Payment received
-- Default normal document title: Sales Invoice
+## One-time Cloudflare setup
 
-These can be changed in **Settings** without editing source code.
+Prerequisites:
 
-## Default invoice types
+- Node.js installed.
+- A Cloudflare account.
+- Wrangler authenticated to your Cloudflare account.
 
-| Type | Prefix | First Number | Document title |
-| --- | --- | ---: | --- |
-| Normal Invoice | INV | 1 | Sales Invoice |
-| Consignment | CS | 1 | Consignment Invoice |
-| Replacement | RP | 1 | Replacement Invoice |
-
-Each type has its own counter. Invoice numbers are allocated only when the sale is successfully saved.
-
-## Core workflow
-
-1. Open **New Sale**.
-2. Choose invoice type and invoice date.
-3. Choose **Existing Customer** or **New Customer**.
-4. For an existing customer, search/select the customer and verify the loaded details.
-5. For a new customer, enter name, address, contact person and phone. The customer is saved automatically.
-6. Add one or more invoice items.
-7. Enter quantity and unit price; line totals and subtotal calculate automatically.
-8. Enter discount (use zero when none).
-9. Enter the internal Profit figure.
-10. Choose payment status, edit terms if necessary, and enter a note if needed.
-11. Save. The invoice number is allocated and the sale is stored.
-12. Open **Customer Invoice** to preview, print or download the PDF.
-
-## Historical customer data
-
-An invoice keeps a snapshot of the customer name, address, contact person and phone at the time it is created. If you later edit the customer in **Customers**, previously issued invoices keep their original details.
-
-## Money storage
-
-Currency amounts are stored as integer cents rather than floating-point values, reducing rounding problems for financial records.
-
-## Important upgrade note
-
-This package is a consolidated updated build. It does **not** automatically import the old Excel workbook, and it does not contain an automated migration from an earlier draft SQLite schema. If you already entered important data into an older draft database, keep a copy of that database before switching and migrate it separately.
-
-## Project structure
-
-- `app/` - pages and API routes
-- `components/` - reusable UI and forms
-- `lib/` - database, money/date utilities and PDF generator
-- `prisma/` - SQLite schema and seed data
-- `public/company-logo.png` - supplied company logo used in the UI and invoices
-- `data/` - local SQLite database and backups
-- `docs/Invoice_Design_Preview.pdf` - static preview of the intended invoice layout
-
-## Development commands
+From the project directory:
 
 ```bash
 npm install
-npm run setup
+npx wrangler login
+npx wrangler d1 create pmm-sales-db
+```
+
+Cloudflare will return a configuration block containing the real `database_id`.
+
+Open `wrangler.jsonc` and replace:
+
+```jsonc
+"database_id": "00000000-0000-0000-0000-000000000000"
+```
+
+with the ID Cloudflare returned.
+
+Then initialize the production database:
+
+```bash
+npm run db:remote:apply
+```
+
+This creates the tables and seeds:
+
+- Normal Invoice (`INV`)
+- Consignment (`CS`)
+- Replacement (`RP`)
+- Default company settings
+
+## Deploy from your computer
+
+After the D1 database ID has been configured:
+
+```bash
+npm run deploy
+```
+
+The application will be deployed to the `pmm-sales` Worker and Cloudflare will provide a `*.workers.dev` address unless you attach a custom domain.
+
+## Cloudflare Git / Workers Builds
+
+If deploying from a Git repository through Cloudflare Workers Builds, commit the real D1 database ID in `wrangler.jsonc` first.
+
+Recommended build settings:
+
+```text
+Build command:  npm run build:cf
+Deploy command: npx @opennextjs/cloudflare deploy
+```
+
+The D1 migration should be applied once before the first application deployment:
+
+```bash
+npm run db:remote:apply
+```
+
+Afterward, normal application deployments do not need to recreate the database.
+
+## Local development
+
+Run:
+
+```bash
+npm install
+npm run db:local:apply
 npm run dev
 ```
 
-Production build:
+or on Windows run:
+
+```text
+setup.bat
+start.bat
+```
+
+The local D1 state is managed by Wrangler under `.wrangler/` rather than the old `data/pmm-sales.db` file.
+
+For a closer-to-production runtime test:
 
 ```bash
-npm run build
-npm start
+npm run preview
 ```
+
+## Useful commands
+
+```bash
+npm run dev              # Next.js local development
+npm run preview          # Build and preview in the Workers runtime
+npm run build:cf         # Build OpenNext output for Cloudflare
+npm run deploy           # Build + deploy to Cloudflare Workers
+npm run db:local:apply   # Apply D1 migrations locally
+npm run db:remote:apply  # Apply D1 migrations to Cloudflare
+npm run cf-typegen       # Generate Cloudflare binding types
+```
+
+## Custom domain
+
+Once the Worker works on its `workers.dev` address, attach your custom domain/subdomain in Cloudflare, for example:
+
+```text
+sales.yourdomain.com
+```
+
+A Cloudflare Tunnel is not required for this cloud-hosted version.
+
+## Authentication warning
+
+**Login/authentication is intentionally not included in this migration increment.**
+
+Do not treat the deployed URL as ready for sensitive production business data until the planned login/security increment is added. The next recommended enhancement is application authentication before broad use.
+
+## Database notes
+
+Cloudflare D1 is SQLite-compatible, but it is not a local SQLite file. Runtime access happens through the `DB` Worker binding.
+
+Prisma ORM is retained for queries and simple writes. D1's native `batch()` API is used for invoice create/edit operations because D1 batches execute atomically while Prisma transactions are not relied upon for D1.
+
+## Existing local data
+
+This cloud database intentionally starts fresh. The old local SQLite database is not automatically imported. Historical/local data migration can be handled separately if needed later.
+
+## Cloudflare compatibility check
+
+Before the first production deployment, run:
+
+```bash
+npm run check:cf
+```
+
+This performs the OpenNext build and a Wrangler dry run so Cloudflare can report the generated Worker bundle information without publishing it. This is especially useful because this project includes Prisma, ExcelJS and PDF generation.
+
+If Cloudflare reports that the generated Worker exceeds the limits of the plan you are using, do not redesign the whole application immediately. The first optimization target should be the heavier export/PDF dependencies, because the core invoice system itself does not depend on them.

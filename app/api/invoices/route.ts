@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getD1, getDb } from "@/lib/prisma";
 import { buildInvoiceNumber } from "@/lib/invoiceNumber";
 import { isPaymentStatus } from "@/lib/constants";
 import { isValidYmd } from "@/lib/dates";
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const status = searchParams.get("status") || undefined;
   const q = searchParams.get("q")?.trim() || undefined;
 
-  const invoices = await prisma.invoice.findMany({
+  const invoices = await getDb().invoice.findMany({
     where: {
       ...(from || to ? { invoiceDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
       ...(status ? { paymentStatus: status } : {}),
@@ -58,57 +58,98 @@ export async function POST(request: Request) {
       if (!Number.isSafeInteger(lineTotalCents)) throw new Error(`Item ${index + 1} total is too large.`);
       return { description, quantity, unitPriceCents, lineTotalCents, sortOrder: index };
     });
+
     const subtotalCents = items.reduce((sum, item) => sum + item.lineTotalCents, 0);
     if (discountCents > subtotalCents) throw new Error("Discount cannot exceed the subtotal.");
     const totalCents = subtotalCents - discountCents;
 
+    const prisma = getDb();
+    const invoiceType = await prisma.invoiceType.findUnique({ where: { id: invoiceTypeId } });
+    if (!invoiceType || !invoiceType.isActive) throw new Error("Selected invoice type is unavailable.");
+
     const customerMode = String(body.customerMode ?? "existing");
-    const created = await prisma.$transaction(async (tx) => {
-      const invoiceType = await tx.invoiceType.findUnique({ where: { id: invoiceTypeId } });
-      if (!invoiceType || !invoiceType.isActive) throw new Error("Selected invoice type is unavailable.");
+    let customerId: number | null = null;
+    let customerName: string;
+    let customerAddress: string;
+    let contactPerson: string | null;
+    let phone: string | null;
 
-      let customer;
-      if (customerMode === "new") {
-        const name = String(body.newCustomer?.name ?? "").trim();
-        const address = String(body.newCustomer?.address ?? "").trim();
-        const contactPerson = String(body.newCustomer?.contactPerson ?? "").trim() || null;
-        const phone = String(body.newCustomer?.phone ?? "").trim() || null;
-        if (!name) throw new Error("New customer name is required.");
-        if (!address) throw new Error("New customer address is required.");
-        customer = await tx.customer.create({ data: { name, address, contactPerson, phone } });
-      } else {
-        const customerId = Number(body.customerId);
-        if (!Number.isInteger(customerId) || customerId < 1) throw new Error("Select an existing customer.");
-        customer = await tx.customer.findUnique({ where: { id: customerId } });
-        if (!customer || !customer.isActive) throw new Error("Selected customer is unavailable.");
-      }
+    if (customerMode === "new") {
+      customerName = String(body.newCustomer?.name ?? "").trim();
+      customerAddress = String(body.newCustomer?.address ?? "").trim();
+      contactPerson = String(body.newCustomer?.contactPerson ?? "").trim() || null;
+      phone = String(body.newCustomer?.phone ?? "").trim() || null;
+      if (!customerName) throw new Error("New customer name is required.");
+      if (!customerAddress) throw new Error("New customer address is required.");
+    } else {
+      customerId = Number(body.customerId);
+      if (!Number.isInteger(customerId) || customerId < 1) throw new Error("Select an existing customer.");
+      const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (!customer || !customer.isActive) throw new Error("Selected customer is unavailable.");
+      customerName = customer.name;
+      customerAddress = customer.address;
+      contactPerson = customer.contactPerson;
+      phone = customer.phone;
+    }
 
-      const invoiceNumber = buildInvoiceNumber(invoiceType.prefix, invoiceType.nextNumber, invoiceType.padding);
-      const invoice = await tx.invoice.create({
-        data: {
-          invoiceNumber,
-          invoiceDate,
-          invoiceTypeId,
-          customerId: customer.id,
-          customerNameSnapshot: customer.name,
-          customerAddressSnapshot: customer.address,
-          contactPersonSnapshot: customer.contactPerson,
-          phoneSnapshot: customer.phone,
-          subtotalCents,
-          discountCents,
-          totalCents,
-          profitCents,
-          paymentStatus,
-          terms,
-          note,
-          items: { create: items },
-        },
-        include: { invoiceType: true, items: true },
-      });
-      await tx.invoiceType.update({ where: { id: invoiceTypeId }, data: { nextNumber: { increment: 1 } } });
-      return invoice;
+    const invoiceNumber = buildInvoiceNumber(invoiceType.prefix, invoiceType.nextNumber, invoiceType.padding);
+    const db = getD1();
+    const statements: any[] = [];
+
+    if (customerMode === "new") {
+      statements.push(
+        db.prepare('INSERT INTO "Customer" ("name", "address", "contactPerson", "phone", "isActive", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)')
+          .bind(customerName, customerAddress, contactPerson, phone),
+      );
+    }
+
+    const customerIdSql = customerMode === "new" ? "last_insert_rowid()" : "?";
+    const invoiceSql = `INSERT INTO "Invoice" (
+      "invoiceNumber", "invoiceDate", "invoiceTypeId", "customerId",
+      "customerNameSnapshot", "customerAddressSnapshot", "contactPersonSnapshot", "phoneSnapshot",
+      "subtotalCents", "discountCents", "totalCents", "profitCents", "paymentStatus", "terms", "note",
+      "createdAt", "updatedAt"
+    ) VALUES (?, ?, ?, ${customerIdSql}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+
+    const invoiceArgs = [
+      invoiceNumber,
+      invoiceDate,
+      invoiceTypeId,
+      ...(customerMode === "new" ? [] : [customerId]),
+      customerName,
+      customerAddress,
+      contactPerson,
+      phone,
+      subtotalCents,
+      discountCents,
+      totalCents,
+      profitCents,
+      paymentStatus,
+      terms,
+      note,
+    ];
+    statements.push(db.prepare(invoiceSql).bind(...invoiceArgs));
+
+    for (const item of items) {
+      statements.push(
+        db.prepare('INSERT INTO "InvoiceItem" ("invoiceId", "description", "quantity", "unitPriceCents", "lineTotalCents", "sortOrder") VALUES ((SELECT "id" FROM "Invoice" WHERE "invoiceNumber" = ?), ?, ?, ?, ?, ?)')
+          .bind(invoiceNumber, item.description, item.quantity, item.unitPriceCents, item.lineTotalCents, item.sortOrder),
+      );
+    }
+
+    statements.push(
+      db.prepare('UPDATE "InvoiceType" SET "nextNumber" = "nextNumber" + 1, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "nextNumber" = ?')
+        .bind(invoiceTypeId, invoiceType.nextNumber),
+    );
+
+    // D1 batch() is atomic: if any statement fails, the complete batch is rolled back.
+    await db.batch(statements);
+
+    const created = await getDb().invoice.findUnique({
+      where: { invoiceNumber },
+      include: { invoiceType: true, items: { orderBy: { sortOrder: "asc" } } },
     });
-
+    if (!created) throw new Error("Invoice was saved but could not be reloaded.");
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to create invoice." }, { status: 400 });

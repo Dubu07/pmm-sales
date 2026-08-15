@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 import { currentMonthRange, todayYmd } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { Card, PageHeader, buttonPrimary, buttonSecondary } from "@/components/ui";
@@ -7,7 +7,7 @@ import { Card, PageHeader, buttonPrimary, buttonSecondary } from "@/components/u
 export const dynamic = "force-dynamic";
 
 async function totals(from: string, to: string) {
-  const invoices = await prisma.invoice.findMany({
+  const invoices = await getDb().invoice.findMany({
     where: { invoiceDate: { gte: from, lte: to }, paymentStatus: { not: "Cancelled" } },
     select: { totalCents: true, profitCents: true },
   });
@@ -24,11 +24,11 @@ export default async function DashboardPage() {
   const [todayStats, monthStats, recent] = await Promise.all([
     totals(today, today),
     totals(month.from, month.to),
-    prisma.invoice.findMany({ include: { invoiceType: true }, orderBy: { id: "desc" }, take: 6 }),
+    getDb().invoice.findMany({ include: { invoiceType: true }, orderBy: { id: "desc" }, take: 6 }),
   ]);
   return (
     <>
-      <PageHeader title="Dashboard" description="Local sales and invoice overview." actions={<><Link className={buttonSecondary} href="/reports">Reports</Link><Link className={buttonPrimary} href="/new-sale">+ New Sale</Link></>} />
+      <PageHeader title="Dashboard" description="Sales and invoice overview." actions={<><Link className={buttonSecondary} href="/reports">Reports</Link><Link className={buttonPrimary} href="/new-sale">+ New Sale</Link></>} />
       <div className="grid gap-4 md:grid-cols-3">
         <Card><div className="text-sm text-slate-500">Today Sales</div><div className="mt-2 text-2xl font-semibold">{formatMoney(todayStats.sales)}</div><div className="mt-1 text-xs text-slate-500">{todayStats.count} active invoice(s)</div></Card>
         <Card><div className="text-sm text-slate-500">Today Profit</div><div className="mt-2 text-2xl font-semibold">{formatMoney(todayStats.profit)}</div><div className="mt-1 text-xs text-slate-500">Internal reporting figure</div></Card>

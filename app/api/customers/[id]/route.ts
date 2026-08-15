@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const customer = await prisma.customer.findUnique({ where: { id: Number(id) } });
+  const customer = await getDb().customer.findUnique({ where: { id: Number(id) } });
   if (!customer) return NextResponse.json({ error: "Customer not found." }, { status: 404 });
   return NextResponse.json(customer);
 }
@@ -18,7 +18,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const phone = String(body.phone ?? "").trim() || null;
     if (!name) throw new Error("Customer name is required.");
     if (!address) throw new Error("Customer address is required.");
-    const customer = await prisma.customer.update({
+    const customer = await getDb().customer.update({
       where: { id: Number(id) },
       data: { name, address, contactPerson, phone },
     });

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 import { currentMonthRange, isValidYmd } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { PageHeader, Card, buttonPrimary, inputClass } from "@/components/ui";
@@ -14,7 +14,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
   const toParam = one(params.to) || month.to;
   const from = isValidYmd(fromParam) ? fromParam : month.from;
   const to = isValidYmd(toParam) && toParam >= from ? toParam : month.to;
-  const invoices = await prisma.invoice.findMany({ where: { invoiceDate: { gte: from, lte: to } }, include: { invoiceType: true, _count: { select: { items: true } } }, orderBy: [{ invoiceDate: "asc" }, { id: "asc" }] });
+  const invoices = await getDb().invoice.findMany({ where: { invoiceDate: { gte: from, lte: to } }, include: { invoiceType: true, _count: { select: { items: true } } }, orderBy: [{ invoiceDate: "asc" }, { id: "asc" }] });
   const active = invoices.filter((i) => i.paymentStatus !== "Cancelled");
   const sales = active.reduce((s, i) => s + i.totalCents, 0);
   const profit = active.reduce((s, i) => s + i.profitCents, 0);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCompanySettings } from "@/lib/company";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 
 export async function GET() {
   return NextResponse.json(await getCompanySettings());
@@ -18,7 +18,7 @@ export async function PATCH(request: Request) {
     if (!companyName || !tin || !bankName || !bankAccount || !defaultTerms || !defaultInvoiceTitle) {
       throw new Error("All company settings fields are required.");
     }
-    const settings = await prisma.companySettings.upsert({
+    const settings = await getDb().companySettings.upsert({
       where: { id: 1 },
       update: { companyName, tin, bankName, bankAccount, defaultTerms, defaultInvoiceTitle },
       create: { id: 1, companyName, tin, bankName, bankAccount, defaultTerms, defaultInvoiceTitle, logoPath: "/company-logo.png" },

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
 import { PageHeader, Card, buttonPrimary, buttonSecondary } from "@/components/ui";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const invoice = await prisma.invoice.findUnique({ where: { id: Number(id) }, include: { invoiceType: true, items: { orderBy: { sortOrder: "asc" } }, customer: true } });
+  const invoice = await getDb().invoice.findUnique({ where: { id: Number(id) }, include: { invoiceType: true, items: { orderBy: { sortOrder: "asc" } }, customer: true } });
   if (!invoice) notFound();
   return (
     <>

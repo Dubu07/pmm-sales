@@ -1,9 +1,8 @@
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 import { isValidYmd } from "@/lib/dates";
 
-export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,7 +10,7 @@ export async function GET(request: Request) {
   const to = searchParams.get("to") || "";
   if (!isValidYmd(from) || !isValidYmd(to) || from > to) return NextResponse.json({ error: "Valid From and To dates are required." }, { status: 400 });
 
-  const invoices = await prisma.invoice.findMany({
+  const invoices = await getDb().invoice.findMany({
     where: { invoiceDate: { gte: from, lte: to } },
     include: { invoiceType: true, items: { orderBy: { sortOrder: "asc" } } },
     orderBy: [{ invoiceDate: "asc" }, { id: "asc" }],

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 import { getCompanySettings } from "@/lib/company";
 import { displayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function InvoicePreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [invoice, company] = await Promise.all([
-    prisma.invoice.findUnique({ where: { id: Number(id) }, include: { invoiceType: true, items: { orderBy: { sortOrder: "asc" } } } }),
+    getDb().invoice.findUnique({ where: { id: Number(id) }, include: { invoiceType: true, items: { orderBy: { sortOrder: "asc" } } } }),
     getCompanySettings(),
   ]);
   if (!invoice) notFound();

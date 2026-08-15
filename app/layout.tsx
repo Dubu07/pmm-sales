@@ -4,7 +4,7 @@ import { Nav } from "@/components/Nav";
 
 export const metadata: Metadata = {
   title: "PMM Sales & Invoice System",
-  description: "Local sales, customer, invoice and reporting system",
+  description: "Cloud-hosted sales, customer, invoice and reporting system",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

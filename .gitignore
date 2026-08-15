@@ -5,3 +5,9 @@ data/*.db-journal
 data/backups/*.db
 .env.local
 *.log
+.open-next/
+.wrangler/
+.dev.vars
+prisma-cli-placeholder.db
+.env
+prisma/prisma-cli-placeholder.db

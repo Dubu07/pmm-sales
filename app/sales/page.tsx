@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 import { PAYMENT_STATUSES } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { PageHeader, Card, buttonPrimary, inputClass } from "@/components/ui";
@@ -15,7 +15,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const to = one(params.to) || "";
   const q = one(params.q)?.trim() || "";
   const status = one(params.status) || "";
-  const invoices = await prisma.invoice.findMany({
+  const invoices = await getDb().invoice.findMany({
     where: {
       ...(from || to ? { invoiceDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
       ...(status ? { paymentStatus: status } : {}),

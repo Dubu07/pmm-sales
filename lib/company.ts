@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 
 export async function getCompanySettings() {
-  return prisma.companySettings.upsert({
+  return getDb().companySettings.upsert({
     where: { id: 1 },
     update: {},
     create: {

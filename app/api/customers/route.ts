@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim() || "";
-  const customers = await prisma.customer.findMany({
+  const customers = await getDb().customer.findMany({
     where: {
       isActive: true,
       ...(q ? { OR: [{ name: { contains: q } }, { contactPerson: { contains: q } }, { phone: { contains: q } }] } : {}),
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const phone = String(body.phone ?? "").trim() || null;
     if (!name) throw new Error("Customer name is required.");
     if (!address) throw new Error("Customer address is required.");
-    const customer = await prisma.customer.create({ data: { name, address, contactPerson, phone } });
+    const customer = await getDb().customer.create({ data: { name, address, contactPerson, phone } });
     return NextResponse.json(customer, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to create customer." }, { status: 400 });

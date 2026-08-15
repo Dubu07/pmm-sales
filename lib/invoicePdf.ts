@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 
 export type PdfInvoiceData = {
@@ -89,18 +87,18 @@ function drawLine(page: PDFPage, y: number, thickness = 0.7, color = LIGHT) {
   page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness, color });
 }
 
-export async function generateInvoicePdf(invoice: PdfInvoiceData, company: PdfCompanyData): Promise<Uint8Array> {
+export async function generateInvoicePdf(invoice: PdfInvoiceData, company: PdfCompanyData, logoBytes?: Uint8Array | null): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
   let logo: Awaited<ReturnType<typeof pdf.embedPng>> | null = null;
-  try {
-    const fileName = company.logoPath.startsWith("/") ? company.logoPath.slice(1) : company.logoPath;
-    const logoBytes = await fs.readFile(path.join(process.cwd(), "public", fileName));
-    logo = await pdf.embedPng(logoBytes);
-  } catch {
-    logo = null;
+  if (logoBytes?.length) {
+    try {
+      logo = await pdf.embedPng(logoBytes);
+    } catch {
+      logo = null;
+    }
   }
 
   const pages: PDFPage[] = [];

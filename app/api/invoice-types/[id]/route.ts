@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/prisma";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -15,9 +15,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!/^[A-Z0-9-]+$/.test(prefix)) throw new Error("Prefix may contain only letters, numbers and hyphens.");
     if (!Number.isInteger(nextNumber) || nextNumber < 1) throw new Error("Next number must be at least 1.");
     if (!Number.isInteger(padding) || padding < 1 || padding > 10) throw new Error("Padding must be between 1 and 10.");
-    const duplicate = await prisma.invoiceType.findFirst({ where: { prefix, id: { not: invoiceTypeId } } });
+    const duplicate = await getDb().invoiceType.findFirst({ where: { prefix, id: { not: invoiceTypeId } } });
     if (duplicate) throw new Error("That invoice prefix is already in use.");
-    const result = await prisma.invoiceType.update({
+    const result = await getDb().invoiceType.update({
       where: { id: invoiceTypeId },
       data: { name, prefix, documentTitle, nextNumber, padding },
     });
