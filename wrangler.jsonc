@@ -1,33 +1,39 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "pmm-sales",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2026-08-15",
-  "compatibility_flags": [
-    "nodejs_compat",
-    "global_fetch_strictly_public"
-  ],
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  },
-  "services": [
-    {
-      "binding": "WORKER_SELF_REFERENCE",
-      "service": "pmm-sales"
-    }
-  ],
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "pmm-sales-db",
-      "database_id": "00000000-0000-0000-0000-000000000000"
-    }
-  ],
-  "vars": {
-    "APP_TIMEZONE": "Asia/Kuala_Lumpur"
-  },
-  "observability": {
-    "enabled": true
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "pmm-sales",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2026-08-15",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "pmm-sales"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "pmm-sales-db",
+			"database_id": "00000000-0000-0000-0000-000000000000"
+		},
+		{
+			"binding": "pmm_sales_db",
+			"database_name": "pmm-sales-db",
+			"database_id": "6175aa68-a0c9-4b05-8ba7-5ace55d0f2a3",
+			"remote": true
+		}
+	],
+	"vars": {
+		"APP_TIMEZONE": "Asia/Kuala_Lumpur"
+	},
+	"observability": {
+		"enabled": true
+	}
 }
