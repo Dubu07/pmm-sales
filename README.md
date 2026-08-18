@@ -29,15 +29,11 @@ The host PC no longer needs to remain on after deployment.
 - PDF logo loading now uses the Cloudflare static-assets binding instead of Node filesystem access.
 - Removed Node-only route runtime declarations that are not supported by OpenNext Workers.
 
-## Important before first deployment
+## D1 database configuration
 
-`wrangler.jsonc` currently contains this placeholder D1 database ID:
+`wrangler.jsonc` is currently configured with the real `pmm-sales-db` D1 database. The old placeholder is no longer present, and the initial migration has been applied to that database.
 
-```text
-00000000-0000-0000-0000-000000000000
-```
-
-You must create the real D1 database and replace that value before deploying.
+If deploying this project to a different Cloudflare account, create a new D1 database and replace the `database_id` in `wrangler.jsonc` before deploying.
 
 ## One-time Cloudflare setup
 
@@ -55,15 +51,7 @@ npx wrangler login
 npx wrangler d1 create pmm-sales-db
 ```
 
-Cloudflare will return a configuration block containing the real `database_id`.
-
-Open `wrangler.jsonc` and replace:
-
-```jsonc
-"database_id": "00000000-0000-0000-0000-000000000000"
-```
-
-with the ID Cloudflare returned.
+Cloudflare will return a configuration block containing the new `database_id`. Replace the existing `database_id` in `wrangler.jsonc` with that value.
 
 Then initialize the production database:
 
@@ -125,6 +113,8 @@ start.bat
 ```
 
 The local D1 state is managed by Wrangler under `.wrangler/` rather than the old `data/pmm-sales.db` file.
+
+OpenNext warns that Windows is not fully supported for the Cloudflare build because the bundle step creates symlinks. Use WSL, or enable Windows Developer Mode before running `npm run build:cf`, `npm run check:cf`, or `npm run deploy`.
 
 For a closer-to-production runtime test:
 
