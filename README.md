@@ -144,11 +144,31 @@ sales.yourdomain.com
 
 A Cloudflare Tunnel is not required for this cloud-hosted version.
 
-## Authentication warning
+## Authentication
 
-**Login/authentication is intentionally not included in this migration increment.**
+The application now requires an ID and password before pages or API routes can be used. Successful login creates a signed, HTTP-only session cookie that expires after seven days. This is a simple single-user login and does not yet provide multiple users or role-based permissions.
 
-Do not treat the deployed URL as ready for sensitive production business data until the planned login/security increment is added. The next recommended enhancement is application authentication before broad use.
+## Login configuration
+
+Local credentials are stored in the ignored `.env.local` file.
+
+For the deployed Worker, add these as secrets in the Worker settings or with Wrangler. Do not commit them to `wrangler.jsonc` or the repository:
+
+```text
+AUTH_USER_ID
+AUTH_PASSWORD
+AUTH_SESSION_SECRET
+```
+
+The production values must be set in Cloudflare because `.env.local` is intentionally not deployed. From a terminal authenticated with Wrangler, set them individually and enter each value when prompted:
+
+```bash
+npx wrangler secret put AUTH_USER_ID
+npx wrangler secret put AUTH_PASSWORD
+npx wrangler secret put AUTH_SESSION_SECRET
+```
+
+Alternatively, add them under the Worker's **Settings > Variables and Secrets** in Cloudflare. Keep the values consistent between the Worker runtime and the Workers Builds environment, and preserve them on future deployments with Wrangler's `--keep-vars` option when applicable.
 
 ## Database notes
 

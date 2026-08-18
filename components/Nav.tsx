@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogoutButton } from "@/components/LogoutButton";
 
 const links = [
   ["Dashboard", "/"],
@@ -22,6 +23,9 @@ export function Nav() {
           </Link>
         ))}
       </nav>
+      <div className="hidden border-t border-slate-200 px-3 py-4 lg:block">
+        <LogoutButton />
+      </div>
     </aside>
   );
 }
