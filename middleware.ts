@@ -4,7 +4,7 @@ import { SESSION_COOKIE, verifySessionValue } from "@/lib/auth";
 
 const publicPaths = new Set(["/login", "/api/auth/login", "/api/auth/logout"]);
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const sessionIsValid = await verifySessionValue(request.cookies.get(SESSION_COOKIE)?.value);
 

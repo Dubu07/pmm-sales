@@ -148,6 +148,8 @@ A Cloudflare Tunnel is not required for this cloud-hosted version.
 
 The application now requires an ID and password before pages or API routes can be used. Successful login creates a signed, HTTP-only session cookie that expires after seven days. This is a simple single-user login and does not yet provide multiple users or role-based permissions.
 
+The request guard is intentionally kept in `middleware.ts`: the current OpenNext Cloudflare adapter does not support Next.js Node middleware, while this Edge-compatible middleware can protect the Worker deployment.
+
 ## Login configuration
 
 Local credentials are stored in the ignored `.env.local` file.
