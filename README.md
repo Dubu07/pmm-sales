@@ -154,7 +154,7 @@ The request guard is intentionally kept in `middleware.ts`: the current OpenNext
 
 Local credentials are stored in the ignored `.env.local` file.
 
-For the deployed Worker, add these as secrets in the Worker settings or with Wrangler. Do not commit them to `wrangler.jsonc` or the repository:
+For the deployed Worker, add these as runtime secrets in the Worker settings or with Wrangler. Do not commit them to `wrangler.jsonc` or the repository:
 
 ```text
 AUTH_USER_ID
@@ -171,6 +171,14 @@ npx wrangler secret put AUTH_SESSION_SECRET
 ```
 
 Alternatively, add them under the Worker's **Settings > Variables and Secrets** in Cloudflare. Keep the values consistent between the Worker runtime and the Workers Builds environment, and preserve them on future deployments with Wrangler's `--keep-vars` option when applicable.
+
+The **Workers Builds > Settings > Variables and secrets** section is for the build process and does not by itself create runtime secrets on the deployed Worker. To verify the runtime configuration without revealing values, run:
+
+```bash
+npx wrangler secret list --name pmm-sales
+```
+
+The output should include all three `AUTH_*` names.
 
 ## Database notes
 

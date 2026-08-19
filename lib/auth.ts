@@ -1,3 +1,5 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 export const SESSION_COOKIE = "pmm_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
@@ -13,6 +15,14 @@ type SessionPayload = {
 };
 
 function getEnvironmentValue(name: string) {
+  try {
+    const env = getCloudflareContext().env as Record<string, unknown>;
+    const cloudflareValue = env[name];
+    if (typeof cloudflareValue === "string") return cloudflareValue;
+  } catch {
+    // Local Next.js development falls back to process.env.
+  }
+
   return process.env[name];
 }
 
